@@ -20,24 +20,19 @@ import { initDb } from './db.js';
 })
 class AppModule {}
 
-const isCloud = !!(process.env.PORT || process.env.NITRO_CLOUD || process.env.NODE_ENV === 'production');
 const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
 @McpApp({
   module: AppModule,
   server: { name: 'escalation-triage', version: '2.0.0' },
-  ...(isCloud
-    ? {
-        transport: {
-          type: 'http',
-          http: {
-            port,
-            host: '0.0.0.0',
-            basePath: '/mcp',
-          },
-        },
-      }
-    : {}),
+  transport: {
+    type: 'http',
+    http: {
+      port,
+      host: '0.0.0.0',
+      basePath: '/mcp',
+    },
+  },
 })
 class EscalationTriageApp {}
 
@@ -45,7 +40,7 @@ async function main() {
   await initDb();
   const app = await McpApplicationFactory.create(EscalationTriageApp);
   await app.start();
-  console.error(`Escalation Triage MCP server running (${isCloud ? `HTTP port ${port}` : 'STDIO'}).`);
+  console.error(`Escalation Triage MCP server running on http://0.0.0.0:${port}/mcp`);
 }
 
 main().catch((err) => {
