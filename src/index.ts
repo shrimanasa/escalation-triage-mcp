@@ -5,7 +5,7 @@ import { CorrelatorController } from './tools/correlator.controller.js';
 import { ClassifierController } from './tools/classifier.controller.js';
 import { NotifierController } from './tools/notifier.controller.js';
 import { QueryController } from './tools/query.controller.js';
-import { initDb, closeDb } from './db.js';
+import { initDb } from './db.js';
 
 @Module({
   name: 'escalation-triage',
@@ -20,9 +20,18 @@ import { initDb, closeDb } from './db.js';
 })
 class AppModule {}
 
+const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+
 @McpApp({
   module: AppModule,
   server: { name: 'escalation-triage', version: '2.0.0' },
+  transport: {
+    type: 'http',
+    http: {
+      port,
+      host: '0.0.0.0',
+    },
+  },
 })
 class EscalationTriageApp {}
 
@@ -30,18 +39,7 @@ async function main() {
   await initDb();
   const app = await McpApplicationFactory.create(EscalationTriageApp);
   await app.start();
-  console.error('Escalation Triage MCP server is running (JSON file-backed).');
-}
-
-for (const signal of ['SIGINT', 'SIGTERM'] as const) {
-  process.on(signal, async () => {
-    console.error(`Received ${signal}, shutting down...`);
-    try {
-      await closeDb();
-    } finally {
-      process.exit(0);
-    }
-  });
+  console.error(`Escalation Triage MCP server is running on port ${port}.`);
 }
 
 main().catch((err) => {
