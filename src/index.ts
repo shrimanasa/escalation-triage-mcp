@@ -1,5 +1,7 @@
 import 'reflect-metadata';
 import { McpApp, Module, McpApplicationFactory } from '@nitrostack/core';
+import express from 'express';
+import path from 'path';
 import { SignalCollectorController } from './tools/signalCollector.controller.js';
 import { CorrelatorController } from './tools/correlator.controller.js';
 import { ClassifierController } from './tools/classifier.controller.js';
@@ -20,23 +22,18 @@ import { initDb } from './db.js';
 })
 class AppModule {}
 
-const isCloud = !!(process.env.PORT || process.env.NITRO_CLOUD || process.env.NODE_ENV === 'production');
 const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
 @McpApp({
   module: AppModule,
   server: { name: 'escalation-triage', version: '2.0.0' },
   transport: {
-    type: isCloud ? 'http' : 'stdio',
-    ...(isCloud
-      ? {
-          http: {
-            port,
-            host: '0.0.0.0',
-            basePath: '/mcp',
-          },
-        }
-      : {}),
+    type: 'http',
+    http: {
+      port,
+      host: '0.0.0.0',
+      basePath: '/mcp',
+    },
   },
 })
 class EscalationTriageApp {}
@@ -44,11 +41,20 @@ class EscalationTriageApp {}
 async function main() {
   await initDb();
   const app = await McpApplicationFactory.create(EscalationTriageApp);
+  
+  // Attach static UI middleware to express app
+  const httpTransport = (app as any).getHttpTransport?.() || (app as any)._httpTransport;
+  if (httpTransport && typeof httpTransport.getApp === 'function') {
+    const expressApp = httpTransport.getApp();
+    const publicPath = path.join(process.cwd(), 'public');
+    expressApp.use(express.static(publicPath));
+  }
+
   await app.start();
-  console.error(`Escalation Triage MCP server running (${isCloud ? `HTTP port ${port}` : 'STDIO'}).`);
+  console.error(`Escalation Triage server running on http://0.0.0.0:${port}/mcp (UI bundled in /public)`);
 }
 
 main().catch((err) => {
-  console.error('Failed to start Escalation Triage MCP server:', err);
+  console.error('Failed to start Escalation Triage server:', err);
   process.exit(1);
 });
