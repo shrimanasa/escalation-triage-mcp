@@ -2,6 +2,7 @@ import 'reflect-metadata';
 import { McpApp, Module, McpApplicationFactory } from '@nitrostack/core';
 import express from 'express';
 import path from 'path';
+import fs from 'fs';
 import { SignalCollectorController } from './tools/signalCollector.controller.js';
 import { CorrelatorController } from './tools/correlator.controller.js';
 import { ClassifierController } from './tools/classifier.controller.js';
@@ -49,31 +50,31 @@ async function main() {
     if (httpTransport && typeof httpTransport.getApp === 'function') {
       const expressApp = httpTransport.getApp();
       const publicPath = path.join(process.cwd(), 'public');
-      
-      // Auto-redirect root browser requests to /ui
-      expressApp.get('/', (req: any, res: any, next: any) => {
-        if (req.headers.accept && req.headers.accept.includes('text/html')) {
-          return res.redirect('/ui');
-        }
-        next();
-      });
 
-      expressApp.use('/ui', express.static(publicPath));
-      expressApp.use('/app', express.static(publicPath));
-      expressApp.use(express.static(publicPath));
+      if (fs.existsSync(publicPath)) {
+        expressApp.use(express.static(publicPath));
+        expressApp.use('/ui', express.static(publicPath));
+        expressApp.use('/app', express.static(publicPath));
 
-      expressApp.get('/ui', (req: any, res: any) => {
-        res.sendFile(path.join(publicPath, 'index.html'));
-      });
-      expressApp.get('/app', (req: any, res: any) => {
-        res.sendFile(path.join(publicPath, 'index.html'));
-      });
+        const renderUi = (_req: any, res: any) => {
+          const indexPath = path.join(publicPath, 'index.html');
+          if (fs.existsSync(indexPath)) {
+            res.sendFile(indexPath);
+          } else {
+            res.send('UI building...');
+          }
+        };
+
+        expressApp.get('/ui', renderUi);
+        expressApp.get('/app', renderUi);
+        expressApp.get('/ui/*', renderUi);
+      }
     }
   } catch (err) {
     console.error('Static UI route warning:', err);
   }
 
-  console.error(`Escalation Triage server running on http://0.0.0.0:${port}/mcp (UI at /ui and /app)`);
+  console.error(`Escalation Triage server running on http://0.0.0.0:${port}/mcp (UI at /ui)`);
 }
 
 main().catch((err) => {
