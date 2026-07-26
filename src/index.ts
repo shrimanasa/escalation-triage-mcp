@@ -52,6 +52,23 @@ async function main() {
       const publicPath = path.join(process.cwd(), 'public');
 
       if (fs.existsSync(publicPath)) {
+        // Intercept GET / at the top of Express stack to override NitroStack default page
+        if (expressApp._router && Array.isArray(expressApp._router.stack)) {
+          expressApp._router.stack.unshift({
+            route: {
+              path: '/',
+              methods: { get: true },
+              stack: [
+                {
+                  handle: (_req: any, res: any) => {
+                    res.sendFile(path.join(publicPath, 'index.html'));
+                  }
+                }
+              ]
+            }
+          });
+        }
+
         expressApp.use(express.static(publicPath));
         expressApp.use('/ui', express.static(publicPath));
         expressApp.use('/app', express.static(publicPath));
@@ -67,14 +84,13 @@ async function main() {
 
         expressApp.get('/ui', renderUi);
         expressApp.get('/app', renderUi);
-        expressApp.get('/ui/*', renderUi);
       }
     }
   } catch (err) {
     console.error('Static UI route warning:', err);
   }
 
-  console.error(`Escalation Triage server running on http://0.0.0.0:${port}/mcp (UI at /ui)`);
+  console.error(`Escalation Triage server running on http://0.0.0.0:${port}/mcp (UI at /)`);
 }
 
 main().catch((err) => {
