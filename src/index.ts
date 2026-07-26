@@ -50,6 +50,14 @@ async function main() {
       const expressApp = httpTransport.getApp();
       const publicPath = path.join(process.cwd(), 'public');
       
+      // Auto-redirect root browser requests to /ui
+      expressApp.get('/', (req: any, res: any, next: any) => {
+        if (req.headers.accept && req.headers.accept.includes('text/html')) {
+          return res.redirect('/ui');
+        }
+        next();
+      });
+
       expressApp.use('/ui', express.static(publicPath));
       expressApp.use('/app', express.static(publicPath));
       expressApp.use(express.static(publicPath));
